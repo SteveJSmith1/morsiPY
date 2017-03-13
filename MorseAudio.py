@@ -167,6 +167,12 @@ def txtToBytes(string, full=True, ms=None, length=None):
 def dotFile():
     return 'dot1.wav'
     
+def writeSilence(length):
+    _,_,_,params = processDot(dotFile())
+    silence = bytes(int((params[2]*(length/1000))))  
+    
+    return silence
+    
 #===================================
 
 def readWav(file):
