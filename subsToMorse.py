@@ -40,7 +40,7 @@ def subtitleTimings(starts_td, ends_td):
     sub_ms = []
     for i in range(len(starts_td)):
         delta = (ends_td[i]-starts_td[i]).total_seconds()*1000
-        sub_ms.append(int(delta))
+        sub_ms.append(round(delta))
     return sub_ms
 
 
@@ -53,7 +53,7 @@ def silenceMS(starts_td, ends_td):
     for i in range(1,len(starts_td)):
         silence.append(starts_td[i] - ends_td[i - 1])
      
-    silence_ms = [int(i.total_seconds()*1000) for i in silence]
+    silence_ms = [round(i.total_seconds()*1000) for i in silence]
     return silence_ms
     
 
@@ -194,7 +194,7 @@ def silenceBytes(silence_ms):
     frames_per_ms = framerate/1000
     silence_bytes = []
     for val in silence_ms:
-        sb = bytes(int(frames_per_ms*4*val))
+        sb = bytes(round(frames_per_ms*4*val))
         silence_bytes.append(sb)
         
     return silence_bytes
@@ -207,31 +207,63 @@ def completeBytes(silence_bytes, morse_bytes):
         complete += silence_bytes[i]
         complete += morse_bytes[i]
     return bytes(complete)
+ 
+def processTimes(parsed):
+    start_times, end_times = extractTimes(parsed)
+    starts_td = getTimedelta(start_times)
+    ends_td = getTimedelta(end_times)
+    sub_ms = subtitleTimings(starts_td, ends_td)
+    silence_ms = silenceMS(starts_td, ends_td)
+    return sub_ms, silence_ms, ends_td
     
 
+ 
+def subsToMorse(file, save_file):
+    
+
+    parsed = parseSRT(file)
+    sub_ms, silence_ms, ends_td = processTimes(parsed)
+    
+    processed = processWords(parsed)
+    
+    morse = encodeList(processed)
+    dot_equivs = dotEquivs(morse)
+    len_dot_ms = dotMS(sub_ms, dot_equivs)
+    nframes = nFrames(len_dot_ms)
+    dot_bytes = dotBytes(nframes)
+    sound_sets = compileSoundset(dot_bytes)
+    morse_bytes = morseBytes(morse, sound_sets)
+    
+    
+    silence_bytes = silenceBytes(silence_ms)
+    
+    
+    complete_bytes = completeBytes(silence_bytes, morse_bytes)
+    
+    
+    from MorseAudio import writeWav
+    
+    _,_,_,params = processDot(dotWavFile())
+       
+    writeWav(complete_bytes, save_file, params)
+    
+    afl = audio_file_length = len(complete_bytes)/44100/4
+    
+    sl = subtitle_length = ends_td[-1].total_seconds()
+    
+    lep = (afl-sl)/sl*100
+    
+    
+    return print('The error in length is %g%%' % lep)
+    
+       
+
+    
+    
+    
 file = r'D:\Data\Subs\24\Season 1\24.1x01.12am-1am.DVDRip.XViD-FoV.EN.srt'
+subsToMorse(file, '24E1Morse.wav')
 
-parsed = parseSRT(file)
-start_times, end_times = extractTimes(parsed)
-starts_td = getTimedelta(start_times)
-ends_td = getTimedelta(end_times)
-sub_ms = subtitleTimings(starts_td, ends_td)
-silence_ms = silenceMS(starts_td, ends_td)
-processed = processWords(parsed)
-morse = encodeList(processed)
-dot_equivs = dotEquivs(morse)
-len_dot_ms = dotMS(sub_ms, dot_equivs)
-nframes = nFrames(len_dot_ms)
-dot_bytes = dotBytes(nframes)
-sound_sets = compileSoundset(dot_bytes)
-morse_bytes = morseBytes(morse, sound_sets)
-silence_bytes = silenceBytes(silence_ms)
-complete_bytes = completeBytes(silence_bytes, morse_bytes)
-from MorseAudio import writeWav
-
-_,_,_,params = processDot(dotWavFile())
-   
-writeWav(complete_bytes, '24E1.wav', params)
 
 
 
